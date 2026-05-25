@@ -14,17 +14,30 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // 1. Setup Logo Animation
+    // 1. Setup Advanced Animations (Fade + Scale)
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1500),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutBack,
+      ), // ✅ Corrected
+    );
+
     _controller.forward();
 
     // 2. Start Logic Check
@@ -32,34 +45,26 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
-    // Artificial delay so the user sees your beautiful logo
+    // Artificial delay to show the beautiful UI (3 seconds total)
     await Future.delayed(const Duration(seconds: 3));
 
     final prefs = await SharedPreferences.getInstance();
 
-    // --- NEW UPDATE: Check for First Time User (Onboarding) ---
+    // Logic Checks
     final bool isFirstTime = prefs.getBool('is_first_time') ?? true;
-
-    // Check 1: Is Language Selected?
     final String? lang = prefs.getString('language_code');
-
-    // Check 2: Is User Logged In? (Token check)
     final String? token = prefs.getString('auth_token');
 
     if (!mounted) return;
 
-    // Decision Tree Logic (Updated with Onboarding Step)
+    // Decision Tree Navigation
     if (isFirstTime) {
-      // New user sees the 3-step professional introduction
       context.go('/onboarding');
     } else if (lang == null) {
-      // Returning user who hasn't picked a language
       context.go('/language');
     } else if (token == null) {
-      // Language picked but not logged in (Go to Home for now)
-      context.go('/home');
+      context.go('/login'); // Send to /login later when backend is ready
     } else {
-      // Fully setup user -> Dashboard
       context.go('/home');
     }
   }
@@ -73,36 +78,100 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B12), // KARE Dark Green
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo Placeholder (Matches KARE Theme)
-              const Icon(Icons.eco, color: Color(0xFF4CAF50), size: 100),
-              const SizedBox(height: 20),
-              Text(
-                "KARE",
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 8,
-                ),
-              ),
-              const SizedBox(height: 50),
-              // Loading Animation
-              const SizedBox(
-                width: 40,
-                child: LinearProgressIndicator(
-                  color: Color(0xFF4CAF50),
-                  backgroundColor: Color(0xFF1B3022),
-                ),
-              ),
+      // Professional Radial Gradient for depth
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.2,
+            colors: [
+              Color(0xFF1B3022), // Lighter center
+              Color(0xFF0D1B12), // Deep forest edges
             ],
           ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Center Logo & Title
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Glow Effect around Icon
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF4CAF50).withOpacity(0.2),
+                            blurRadius: 40,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.eco_rounded,
+                        color: Color(0xFF4CAF50),
+                        size: 120,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "KARE",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "AI PLANT ADVISOR",
+                      style: GoogleFonts.notoSans(
+                        color: Colors.white54,
+                        fontSize: 14,
+                        letterSpacing: 4,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Loading & Branding
+            Positioned(
+              bottom: 60,
+              child: Column(
+                children: [
+                  const SizedBox(
+                    width: 50,
+                    child: LinearProgressIndicator(
+                      color: Color(0xFF4CAF50),
+                      backgroundColor: Colors.white10,
+                      minHeight: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    "SMART AGRICULTURE SYSTEM",
+                    style: GoogleFonts.notoSans(
+                      color: Colors.white24,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
