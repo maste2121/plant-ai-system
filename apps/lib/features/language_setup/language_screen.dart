@@ -53,7 +53,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
     await prefs.setString('language_code', _tempSelectedCode);
 
     if (mounted) {
-      context.go('/home'); // Navigates via AppRouter
+      context.go('/login'); // Navigates via AppRouter
     }
   }
 

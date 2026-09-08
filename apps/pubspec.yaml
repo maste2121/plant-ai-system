@@ -51,6 +51,8 @@ dependencies:
   go_router: ^17.2.3
   flutter_gen: ^5.14.1
   avatar_glow: ^3.0.1
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

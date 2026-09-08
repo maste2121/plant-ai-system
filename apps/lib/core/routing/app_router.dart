@@ -6,6 +6,12 @@ import 'package:farmer_mobile_app/features/detection/detection_screen.dart';
 import 'package:farmer_mobile_app/features/detection/result_detail_screen.dart';
 import 'package:farmer_mobile_app/features/detection/result_screen.dart';
 import 'package:farmer_mobile_app/features/history/history_screen.dart';
+import 'package:farmer_mobile_app/features/notifications/notification_screen.dart';
+import 'package:farmer_mobile_app/features/profile/profile_screen.dart';
+import 'package:farmer_mobile_app/features/profile/settings_screen.dart';
+import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
+import 'package:farmer_mobile_app/features/tips/tips_screen.dart';
+import 'package:farmer_mobile_app/features/weather/weather_screen.dart';
 import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -68,6 +74,23 @@ class AppRouter {
       GoRoute(
         path: '/history',
         builder: (context, state) => const HistoryScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/weather',
+        builder: (context, state) => const WeatherScreen(),
+      ),
+      GoRoute(path: '/tips', builder: (context, state) => const TipsScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationScreen(),
       ),
     ],
   );

@@ -2,7 +2,10 @@ import 'package:farmer_mobile_app/shared/widgets/voice_mic_button.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:io'; // Needed for File handling
+import 'dart:io';
+// ✅ New Imports for Map functionality
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -14,7 +17,7 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   bool isListView = true;
 
-  // Mock Data
+  // Mock Data (Updated with Coordinates for the Map)
   final List<Map<String, dynamic>> scanHistory = [
     {
       "date": "2024-05-15",
@@ -22,8 +25,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       "amharic": "የቆየ ግርሻ",
       "status": "Disease",
       "crop": "Potato",
-      // For history, we use a placeholder or a saved path
       "imagePath": "",
+      "lat": 9.0300, "lng": 38.7400, // Addis Ababa area
     },
     {
       "date": "2024-05-12",
@@ -32,6 +35,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       "status": "Healthy",
       "crop": "Tomato",
       "imagePath": "",
+      "lat": 9.0500,
+      "lng": 38.7600,
     },
     {
       "date": "2024-05-10",
@@ -40,6 +45,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       "status": "Disease",
       "crop": "Maize",
       "imagePath": "",
+      "lat": 9.0100,
+      "lng": 38.7200,
     },
   ];
 
@@ -84,13 +91,101 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _buildViewToggle(),
           const SizedBox(height: 20),
           Expanded(
-            child: isListView ? _buildHistoryList() : _buildMapPlaceholder(),
+            // ✅ Replaced placeholder with functional Map View
+            child: isListView ? _buildHistoryList() : _buildFunctionalMap(),
           ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: const VoiceMicButton(),
       bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  // ✅ New Functional Map View Method
+  Widget _buildFunctionalMap() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      child: FlutterMap(
+        options: const MapOptions(
+          initialCenter: LatLng(9.0300, 38.7400), // Default to Ethiopia area
+          initialZoom: 11.0,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.farmer_mobile_app.app',
+          ),
+          MarkerLayer(
+            markers:
+                scanHistory.map((item) {
+                  return Marker(
+                    point: LatLng(item['lat'], item['lng']),
+                    width: 60,
+                    height: 60,
+                    child: GestureDetector(
+                      onTap: () => _showMarkerDetails(item),
+                      child: Icon(
+                        Icons.location_on,
+                        color:
+                            item['status'] == 'Healthy'
+                                ? Colors.green
+                                : Colors.red,
+                        size: 40,
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Helper to show details when clicking a map marker
+  void _showMarkerDetails(Map<String, dynamic> item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1B3022),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Icon(Icons.eco, color: Colors.green, size: 40),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['disease'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        item['date'],
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => context.push('/result', extra: File("")),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB38B4D),
+                  ),
+                  child: const Text("Details"),
+                ),
+              ],
+            ),
+          ),
     );
   }
 
@@ -157,11 +252,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: InkWell(
-            // ✅ Added InkWell to handle clicks
             borderRadius: BorderRadius.circular(20),
             onTap: () {
-              // ✅ Navigate to the Treatment/Advisory Screen
-              // For History, we pass a dummy File object or the real one if it exists
               context.push('/result', extra: File(item['imagePath'] ?? ""));
             },
             child: Padding(
@@ -211,7 +303,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ],
                     ),
                   ),
-                  // Navigation Arrow to indicate it's clickable
                   const Icon(
                     Icons.arrow_forward_ios,
                     color: Colors.white24,
@@ -251,12 +342,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildMapPlaceholder() {
-    return const Center(
-      child: Text("Map View coming soon", style: TextStyle(color: Colors.grey)),
-    );
-  }
-
   Widget _buildBottomNav(BuildContext context) {
     return BottomAppBar(
       color: const Color(0xFF1B3022),
@@ -278,7 +363,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(width: 40),
             IconButton(
               icon: const Icon(Icons.tips_and_updates, color: Colors.grey),
-              onPressed: () {},
+              // ✅ Enabled Tips Page Navigation
+              onPressed: () => context.push('/tips'),
             ),
             IconButton(
               icon: const Icon(Icons.person, color: Colors.grey),
