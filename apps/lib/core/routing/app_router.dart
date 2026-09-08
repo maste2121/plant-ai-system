@@ -12,6 +12,7 @@ import 'package:farmer_mobile_app/features/profile/settings_screen.dart';
 import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
 import 'package:farmer_mobile_app/features/tips/tips_screen.dart';
 import 'package:farmer_mobile_app/features/weather/weather_screen.dart';
+import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/splash/splash_screen.dart';
