@@ -34,6 +34,10 @@ const Scan = sequelize.define('Scan', {
   confidence_level: {
     type: DataTypes.DECIMAL(5, 2),
   },
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'Disease', // 'Healthy' or 'Disease'
+  },
   raw_ai_result: {
     type: DataTypes.STRING,
   },

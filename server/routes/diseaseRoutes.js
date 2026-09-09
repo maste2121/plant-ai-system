@@ -23,4 +23,5 @@ router.route('/')
   .post(addDisease)
   .get(getDiseases);
 
+
 module.exports = router;

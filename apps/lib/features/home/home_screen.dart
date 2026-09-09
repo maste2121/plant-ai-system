@@ -1,3 +1,4 @@
+import 'package:farmer_mobile_app/shared/widgets/assistant_history_stories.dart';
 import 'package:farmer_mobile_app/shared/widgets/voice_assistant_overlay.dart';
 import 'package:farmer_mobile_app/shared/widgets/voice_mic_button.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // For language detection
 import 'package:flutter_tts/flutter_tts.dart'; // For the voice speaker
+import 'package:farmer_mobile_app/core/api/dio_client.dart'; // ✅ Added for real notification fetching
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +19,31 @@ class _HomeScreenState extends State<HomeScreen> {
   final FlutterTts _tts = FlutterTts();
   String _selectedLang = 'am'; // Default
   String _userName = ""; // Authenticated user name
+  int _unreadCount = 0; // ✅ For notification badge
 
   @override
   void initState() {
     super.initState();
     _initAppVoice();
+    _fetchUnreadNotifications(); // ✅ Fetch real notification count
+  }
+
+  // ✅ Fetching real count from your notifications table
+  Future<void> _fetchUnreadNotifications() async {
+    try {
+      final response = await DioClient().dio.get('/users/notifications');
+      if (response.statusCode == 200) {
+        final List<dynamic> notes = response.data;
+        setState(() {
+          _unreadCount =
+              notes
+                  .where((n) => n['is_read'] == 0 || n['is_read'] == false)
+                  .length;
+        });
+      }
+    } catch (e) {
+      debugPrint("Notification Count Error: $e");
+    }
   }
 
   // 🔊 Global Voice Greeting based on authenticated user and selected language
@@ -134,8 +156,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 25),
 
-                // 4. INFORMATION: Weather Card (Now set to Bottom as requested)
+                // 4. INFORMATION: Weather Card
                 _buildWeatherCard(context, size, isAm),
+
+                const SizedBox(height: 20),
+
+                // 🎤 NEW: Assistant History Stories
+                const AssistantHistoryStories(),
+
+                const SizedBox(height: 20),
+                // 5. QUICK ACTIONS: Set at the bottom of the weather card
+                _buildQuickActions(isAm),
 
                 const SizedBox(height: 120), // Bottom padding for FAB
               ],
@@ -208,7 +239,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ Updated to show dynamic professional name
               Text(
                 _userName,
                 style: GoogleFonts.notoSans(
@@ -228,17 +258,43 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        // Locate the header row and update the IconButton
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_active_outlined,
-            color: Colors.white,
-            size: 26,
-          ),
-          onPressed:
-              () => context.push(
-                '/notifications',
-              ), // ✅ Navigates to notifications
+        // ✅ Notification Icon with Number Badge
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_active_outlined,
+                color: Colors.white,
+                size: 26,
+              ),
+              onPressed: () => context.push('/notifications'),
+            ),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    '$_unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -341,6 +397,64 @@ class _HomeScreenState extends State<HomeScreen> {
               Icons.arrow_forward_ios_rounded,
               color: Colors.white24,
               size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ New Quick Action section at the bottom of weather card
+  Widget _buildQuickActions(bool isAm) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildSmallAction(
+          icon: Icons.storefront_rounded,
+          label: isAm ? "ገበያ" : "Market",
+          color: const Color(0xFF2E7D32),
+          onTap: () => context.push('/market'),
+        ),
+        _buildSmallAction(
+          icon: Icons.psychology_rounded,
+          label: isAm ? "ባለሙያ" : "Expert",
+          color: const Color(0xFF1565C0),
+          onTap: () => context.push('/expert'),
+        ),
+        _buildSmallAction(
+          icon: Icons.groups_rounded,
+          label: isAm ? "ማህበረሰብ" : "Community",
+          color: const Color(0xFF6A1B9A),
+          onTap: () => context.push('/community'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmallAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B3022),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 11),
             ),
           ],
         ),

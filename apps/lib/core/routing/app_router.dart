@@ -12,7 +12,7 @@ import 'package:farmer_mobile_app/features/profile/settings_screen.dart';
 import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
 import 'package:farmer_mobile_app/features/tips/tips_screen.dart';
 import 'package:farmer_mobile_app/features/weather/weather_screen.dart';
-import 'package:farmer_mobile_app/features/splash/onboarding_screen.dart';
+import 'package:farmer_mobile_app/shared/models/disease_model.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/splash/splash_screen.dart';
@@ -46,27 +46,57 @@ class AppRouter {
         path: '/detection',
         builder: (context, state) => const DetectionScreen(),
       ),
-      GoRoute(
-        path: '/result',
-        builder: (context, state) {
-          final image = state.extra as File;
-          return ResultScreen(image: image);
-        },
-      ),
-      GoRoute(
-        path: '/result',
-        builder: (context, state) {
-          // 1. Get the image from extra safely
-          final File? image = state.extra as File?;
 
-          // 2. If the image is null (failed to pass), go back to home instead of crashing
-          if (image == null) {
-            return const HomeScreen();
+      // ✅ FIXED: Combined duplicate routes and added safe type checking
+      GoRoute(
+        path: '/result',
+        builder: (context, state) {
+          final extra = state.extra;
+
+          // 🛡️ 1. Handle case where extra is just a File (Legacy/Simple view)
+          if (extra is File) {
+            return ResultDetailScreen(
+              image: extra,
+              resultData: const {
+                "disease_am": "በሂደት ላይ...",
+                "disease_en": "Loading...",
+                "confidence": 0.0,
+                "treatments": {},
+              },
+            );
           }
 
-          return ResultDetailScreen(image: image);
+          // 🛡️ 2. Handle case where extra is a Map (Real Data)
+          if (extra is Map) {
+            // ✅ THE CRITICAL FIX: Convert generic Map to strictly typed Map<String, dynamic>
+            final Map<String, dynamic> params = Map<String, dynamic>.from(
+              extra,
+            );
+
+            // Case A: Mock/Previous logic using 'result' object
+            if (params.containsKey('result')) {
+              return ResultScreen(
+                image: params['image'] as File,
+                result: params['result'] as DiseaseResult,
+              );
+            }
+            // Case B: Real AI logic using 'data' Map from Node.js
+            else if (params.containsKey('data')) {
+              return ResultDetailScreen(
+                image: params['image'] as File,
+                // ✅ FIX: Also cast the nested AI data map
+                resultData: Map<String, dynamic>.from(params['data']),
+              );
+            }
+          }
+
+          // 3. Fallback
+          return const Scaffold(
+            body: Center(child: Text("Error: Invalid navigation data")),
+          );
         },
       ),
+
       GoRoute(
         path: '/scan',
         builder: (context, state) => const DetectionScreen(),

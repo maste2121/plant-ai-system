@@ -1,7 +1,7 @@
 // server/models/Disease.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/config');
-const Crop = require('./Crop'); 
+const Crop = require('./Crop');
 
 const Disease = sequelize.define('Disease', {
   id: {
@@ -13,6 +13,7 @@ const Disease = sequelize.define('Disease', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  disease_am: { type: DataTypes.STRING },
   crop_id: {
     type: DataTypes.INTEGER,
     references: {

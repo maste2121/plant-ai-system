@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:farmer_mobile_app/shared/widgets/voice_mic_button.dart';
+import '../../core/api/dio_client.dart';
 
 class TipsScreen extends StatefulWidget {
   const TipsScreen({super.key});
@@ -15,58 +16,68 @@ class TipsScreen extends StatefulWidget {
 class _TipsScreenState extends State<TipsScreen> {
   final FlutterTts _tts = FlutterTts();
   String _selectedLang = 'am';
-  String _activeCategory = 'All';
-
-  // Mock Data: Professional Agricultural Tips (SRD 3.7 Content Management)
-  final List<Map<String, dynamic>> _tips = [
-    {
-      "category": "Soil",
-      "titleEn": "Proper Fertilization",
-      "titleAm": "ትክክለኛ ማዳበሪያ አጠቃቀም",
-      "descEn": "Apply fertilizer 5cm away from the seed to avoid burning.",
-      "descAm": "ዘሩ እንዳይቃጠል ማዳበሪያውን ከዘሩ 5 ሴ.ሜ ርቀት ላይ ያድርጉ።",
-      "icon": Icons.landscape_rounded,
-      "color": Colors.brown,
-    },
-    {
-      "category": "Maize",
-      "titleEn": "Maize Spacing",
-      "titleAm": "የበቆሎ እርቀት",
-      "descEn": "Maintain 25cm between plants for maximum sunlight.",
-      "descAm": "ለበቆሎ ተክል በቂ የፀሐይ ብርሃን እንዲያገኝ 25 ሴ.ሜ እርቀት ይጠብቁ።",
-      "icon": Icons.grain_rounded,
-      "color": Colors.orange,
-    },
-    {
-      "category": "Coffee",
-      "titleEn": "Shade Management",
-      "titleAm": "የቡና ጥላ አያያዝ",
-      "descEn": "Ensure 40% shade coverage for young coffee plants.",
-      "descAm": "ለወጣት የቡና ተክሎች 40% የጥላ ሽፋን መኖሩን ያረጋግጡ።",
-      "icon": Icons.eco_rounded,
-      "color": Colors.green,
-    },
-  ];
+  String _activeCategory = 'All'; // Or 'ሁሉም' for Amharic
+  List<dynamic> _allTips = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadLang();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await _loadLang();
+    await _fetchTipsFromDb();
   }
 
   Future<void> _loadLang() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _selectedLang = prefs.getString('language_code') ?? 'am');
-    _tts.setLanguage(_selectedLang == 'am' ? "am-ET" : "en-US");
+    _selectedLang = prefs.getString('language_code') ?? 'am';
+    await _tts.setLanguage(_selectedLang == 'am' ? "am-ET" : "en-US");
+    if (mounted) setState(() {});
   }
 
-  void _readTip(String am, String en) async {
-    await _tts.speak(_selectedLang == 'am' ? am : en);
+  Future<void> _fetchTipsFromDb() async {
+    try {
+      final response = await DioClient().dio.get('/users/tips');
+      if (response.statusCode == 200) {
+        setState(() {
+          _allTips = response.data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Tips Fetch Error: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ Helper to map DB string to Flutter Icon
+  IconData _getIcon(String name) {
+    switch (name) {
+      case 'grain':
+        return Icons.grain_rounded;
+      case 'eco':
+        return Icons.eco_rounded;
+      case 'landscape':
+        return Icons.landscape_rounded;
+      default:
+        return Icons.tips_and_updates_rounded;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     bool isAm = _selectedLang == 'am';
+
+    // Filter logic
+    final filteredTips =
+        _allTips.where((tip) {
+          if (_activeCategory == 'All' || _activeCategory == 'ሁሉም') return true;
+          return tip['category'].toString().toLowerCase() ==
+              _activeCategory.toLowerCase();
+        }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B12),
@@ -77,33 +88,31 @@ class _TipsScreenState extends State<TipsScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => context.go('/home'),
         ),
-        title: Text(
-          isAm ? "የእርሻ ምክሮች" : "Farming Tips",
-          style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
-        ),
+        title: Text(isAm ? "የእርሻ ምክሮች" : "Farming Tips"),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          // 1. Horizontal Category Selector
-          _buildCategorySlider(isAm),
-
-          // 2. Tips List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _tips.length,
-              physics: const BouncingScrollPhysics(),
-              itemBuilder: (context, index) {
-                final tip = _tips[index];
-                return _buildTipCard(tip, isAm);
-              },
-            ),
-          ),
-        ],
-      ),
-
-      // Professional Navigation UI
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFB38B4D)),
+              )
+              : Column(
+                children: [
+                  _buildCategorySlider(isAm),
+                  Expanded(
+                    child:
+                        filteredTips.isEmpty
+                            ? _buildEmptyState(isAm)
+                            : ListView.builder(
+                              padding: const EdgeInsets.all(20),
+                              itemCount: filteredTips.length,
+                              itemBuilder:
+                                  (context, index) =>
+                                      _buildTipCard(filteredTips[index], isAm),
+                            ),
+                  ),
+                ],
+              ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: const VoiceMicButton(),
       bottomNavigationBar: _buildBottomNav(context),
@@ -112,7 +121,9 @@ class _TipsScreenState extends State<TipsScreen> {
 
   Widget _buildCategorySlider(bool isAm) {
     final cats =
-        isAm ? ['ሁሉም', 'በቆሎ', 'ቡና', 'አፈር'] : ['All', 'Maize', 'Coffee', 'Soil'];
+        isAm
+            ? ['ሁሉም', 'Maize', 'Coffee', 'Soil']
+            : ['All', 'Maize', 'Coffee', 'Soil'];
     return SizedBox(
       height: 60,
       child: ListView.builder(
@@ -132,9 +143,6 @@ class _TipsScreenState extends State<TipsScreen> {
               labelStyle: TextStyle(
                 color: active ? Colors.white : Colors.white54,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
             ),
           );
         },
@@ -143,60 +151,52 @@ class _TipsScreenState extends State<TipsScreen> {
   }
 
   Widget _buildTipCard(Map<String, dynamic> tip, bool isAm) {
+    Color cardColor = Color(
+      int.parse(tip['color_hex'].replaceAll('#', '0xFF')),
+    );
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: const Color(0xFF1B3022),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Visual Icon Circle
-            CircleAvatar(
-              radius: 25,
-              backgroundColor: tip['color'].withOpacity(0.2),
-              child: Icon(tip['icon'], color: tip['color'], size: 30),
-            ),
-            const SizedBox(width: 15),
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isAm ? tip['titleAm'] : tip['titleEn'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    isAm ? tip['descAm'] : tip['descEn'],
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Speaker Button (Inclusive UX)
-            IconButton(
-              icon: const Icon(
-                Icons.volume_up_rounded,
-                color: Color(0xFFB38B4D),
-              ),
-              onPressed: () => _readTip(tip['descAm'], tip['descEn']),
-            ),
-          ],
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(15),
+        leading: CircleAvatar(
+          backgroundColor: cardColor.withOpacity(0.2),
+          child: Icon(_getIcon(tip['icon_name']), color: cardColor),
         ),
+        title: Text(
+          isAm ? tip['title_am'] : tip['title_en'],
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            isAm ? tip['description_am'] : tip['description_en'],
+            style: const TextStyle(color: Colors.white60),
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.volume_up, color: Color(0xFFB38B4D)),
+          onPressed:
+              () => _tts.speak(
+                isAm ? tip['description_am'] : tip['description_en'],
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isAm) {
+    return Center(
+      child: Text(
+        isAm ? "ምንም ምክሮች አልተገኙም" : "No tips found",
+        style: const TextStyle(color: Colors.white24),
       ),
     );
   }
@@ -205,28 +205,24 @@ class _TipsScreenState extends State<TipsScreen> {
     return BottomAppBar(
       color: const Color(0xFF1B3022),
       shape: const CircularNotchedRectangle(),
-      notchMargin: 8.0,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(
-            icon: const Icon(Icons.home_rounded, color: Colors.grey),
+            icon: const Icon(Icons.home, color: Colors.grey),
             onPressed: () => context.go('/home'),
           ),
           IconButton(
-            icon: const Icon(Icons.history_rounded, color: Colors.grey),
+            icon: const Icon(Icons.history, color: Colors.grey),
             onPressed: () => context.go('/history'),
           ),
           const SizedBox(width: 40),
           IconButton(
-            icon: const Icon(
-              Icons.tips_and_updates_rounded,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.tips_and_updates, color: Colors.white),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.person_rounded, color: Colors.grey),
+            icon: const Icon(Icons.person, color: Colors.grey),
             onPressed: () => context.go('/profile'),
           ),
         ],
