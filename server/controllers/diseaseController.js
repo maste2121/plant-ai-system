@@ -177,15 +177,14 @@ exports.addDisease = async (req, res) => {
     }
 
     const disease = await Disease.create({
-      disease_name,
-      crop_id,
-      status: status || 'Active',
-      description,
-      symptoms,
-      causes,
-      treatment_organic,
-      treatment_chemical,
-      prevention_tips,
+      disease_name, crop_id, status: status || 'Active', 
+      display_name_en, display_name_am,
+      description_en, description_am, 
+      symptoms_en, symptoms_am, 
+      causes_en, causes_am, 
+      treatment_organic_en, treatment_organic_am, 
+      treatment_chemical_en, treatment_chemical_am, 
+      prevention_tips_en, prevention_tips_am, 
       image_url
     });
 
@@ -195,7 +194,6 @@ exports.addDisease = async (req, res) => {
 
     res.status(201).json({ success: true, data: completedRecord });
   } catch (err) {
-    console.error("Data Ingestion Error:", err);
     res.status(500).json({ success: false, message: 'Server Error', error: err.message });
   }
 };
@@ -211,7 +209,6 @@ exports.getDiseases = async (req, res) => {
 
     res.status(200).json({ success: true, data: diseases });
   } catch (err) {
-    console.error("Fetch Disease Catalog Error:", err);
     res.status(500).json({ success: false, message: 'Server Error', error: err.message });
   }
 };

@@ -8,6 +8,7 @@ const userRoutes = require('./routes/userRoutes');
 const diseaseRoutes = require('./routes/diseaseRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 
+dotenv.config();
 const app = express();
 
 // 1. Global Middlewares
@@ -28,6 +29,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+const upload = multer({ storage: storage });
 
 // 3. Mount Routes
 app.use('/api/users', userRoutes);
