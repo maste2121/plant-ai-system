@@ -1,73 +1,70 @@
+// server/controllers/adminController.js 
 const User = require('../models/User');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// 🛡️ Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'kare_secret_key_2024', { expiresIn: '30d' });
-};
-
-// 📝 REGISTER USER
-exports.registerUser = async (req, res) => {
+// @desc    Mobile Farmer Registration via Phone Number
+// @route   POST /api/users/register
+exports.registerMobileUser = async (req, res) => {
   try {
-    const { full_name, phone, location, language_pref, password, email } = req.body;
+    const { full_name, phone_number, location } = req.body;
 
-    // 1. Check if user already exists
-    const userExists = await User.findOne({ where: { phone } });
-    if (userExists) {
-      return res.status(400).json({ message: "Phone number already registered" });
+    if (!full_name || !phone_number) {
+      return res.status(400).json({ success: false, message: 'Missing full name or phone number' });
     }
 
-    // 2. Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password || 'password123', salt);
+    // Check if user already exists
+    let user = await User.findOne({ where: { phone_number } });
+    if (user) {
+      return res.status(400).json({ success: false, message: 'Phone number already registered' });
+    }
 
-    // 3. Create User in MySQL
-    const user = await User.create({
+    // Create new farmer entry
+    user = await User.create({
       full_name,
-      phone,
+      phone_number,
       location,
-      language_pref,
-      email: email || null,
-      password: hashedPassword,
+      language_pref: 'English',
+      status: 'Active'
     });
 
-    // 4. Return success data
-    res.status(201).json({
-      token: generateToken(user.id),
-      user: {
-        id: user.id,
-        full_name: user.full_name,
-        phone: user.phone,
-        language_pref: user.language_pref,
-      }
+    // Generate real JWT token for the mobile session lifecycle
+    const token = jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET || 'fallback_secret_123', {
+      expiresIn: '30d'
     });
-  } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(500).json({ message: "Server error during registration", error: error.message });
+
+    res.status(201).json({ success: true, token, user });
+  } catch (err) {
+    console.error('Mobile Register Error:', err);
+    res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
 
-// 🔑 LOGIN USER
-exports.loginUser = async (req, res) => {
+// @desc    Mobile Farmer Login/Verification
+// @route   POST /api/users/login
+exports.loginMobileUser = async (req, res) => {
   try {
-    const { phone, password } = req.body;
-    const user = await User.findOne({ where: { phone } });
+    const { phone_number } = req.body;
 
-    if (user && (await bcrypt.compare(password || 'password123', user.password))) {
-      res.json({
-        token: generateToken(user.id),
-        user: {
-          id: user.id,
-          full_name: user.full_name,
-          phone: user.phone,
-          language_pref: user.language_pref
-        }
-      });
-    } else {
-      res.status(401).json({ message: "Invalid phone or password" });
+    if (!phone_number) {
+      return res.status(400).json({ success: false, message: 'Please provide phone number' });
     }
-  } catch (error) {
-    res.status(500).json({ message: "Login error", error: error.message });
+
+    const user = await User.findOne({ where: { phone_number } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Account not found with this phone number' });
+    }
+
+    if (user.status === 'Blocked') {
+      return res.status(403).json({ success: false, message: 'Your account has been suspended by an administrator' });
+    }
+
+    const token = jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET || 'fallback_secret_123', {
+      expiresIn: '30d'
+    });
+
+    res.status(200).json({ success: true, token, user });
+  } catch (err) {
+    console.error('Mobile Login Error:', err);
+    res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
