@@ -2,69 +2,136 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// @desc    Mobile Farmer Registration via Phone Number
-// @route   POST /api/users/register
-exports.registerMobileUser = async (req, res) => {
+/**
+ * 🛡️ Generate JWT Token
+ * Standard practice: valid for 30 days for farmer convenience
+ */
+const generateToken = (id) => {
+  return jwt.sign(
+    { id },
+    process.env.JWT_SECRET || 'kare_secret_key_2024',
+    { expiresIn: '30d' }
+  );
+};
+
+/**
+ * 📝 REGISTER USER
+ * Handles: full_name, phone, location, language_pref
+ */
+exports.registerUser = async (req, res) => {
   try {
     const { full_name, phone_number, location } = req.body;
 
-    if (!full_name || !phone_number) {
-      return res.status(400).json({ success: false, message: 'Missing full name or phone number' });
+    // 1. Check if user already exists (Phone is the primary ID)
+    const userExists = await User.findOne({ where: { phone } });
+    if (userExists) {
+      return res.status(400).json({ message: "Phone number already registered" });
     }
 
-    // Check if user already exists
-    let user = await User.findOne({ where: { phone_number } });
-    if (user) {
-      return res.status(400).json({ success: false, message: 'Phone number already registered' });
-    }
+    // 2. Hash password (Security standard)
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password || 'password123', salt);
 
-    // Create new farmer entry
-    user = await User.create({
+    // 3. Create User in MySQL via Sequelize
+    const user = await User.create({
       full_name,
       phone_number,
       location,
-      language_pref: 'English',
-      status: 'Active'
+      language_pref: language_pref || 'Amharic',
+      email: email || null,
+      password: hashedPassword,
     });
 
-    // Generate real JWT token for the mobile session lifecycle
-    const token = jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET || 'fallback_secret_123', {
-      expiresIn: '30d'
-    });
+    console.log(`✅ New User Registered: ${full_name} (${phone})`);
 
-    res.status(201).json({ success: true, token, user });
-  } catch (err) {
-    console.error('Mobile Register Error:', err);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    // 4. Return success data matching Flutter AuthService spelling
+    res.status(201).json({
+      token: generateToken(user.id),
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        phone: user.phone,
+        language_pref: user.language_pref,
+        location: user.location
+      }
+    });
+  } catch (error) {
+    console.error("🔴 Registration Error:", error);
+    res.status(500).json({ message: "Server error during registration", error: error.message });
   }
 };
 
-// @desc    Mobile Farmer Login/Verification
-// @route   POST /api/users/login
-exports.loginMobileUser = async (req, res) => {
+/**
+ * 🔑 LOGIN USER
+ * Validates Phone and Password
+ */
+/**
+ * 🔑 LOGIN USER
+ * Distinguished logic for User Not Found vs. Wrong Password
+ */
+exports.loginUser = async (req, res) => {
   try {
-    const { phone_number } = req.body;
+    const { phone, password } = req.body;
 
-    if (!phone_number) {
-      return res.status(400).json({ success: false, message: 'Please provide phone number' });
-    }
+    // 1. Find user in Database
+    const user = await User.findOne({ where: { phone } });
 
-    const user = await User.findOne({ where: { phone_number } });
+    // 🟢 NEW UPDATE: If user is not found, return 404 (Not Found)
+    // This tells Flutter to suggest the registration page
     if (!user) {
-      return res.status(404).json({ success: false, message: 'Account not found with this phone number' });
+      return res.status(404).json({
+        message: "Account not found. Please register first.",
+        amharic_message: "መለያዎ አልተገኘም። እባክዎን መጀመሪያ ይመዝገቡ።",
+        suggestRegister: true
+      });
     }
 
-    if (user.status === 'Blocked') {
-      return res.status(403).json({ success: false, message: 'Your account has been suspended by an administrator' });
-    }
+    // 2. Compare passwords
+    const isMatch = await bcrypt.compare(password || 'password123', user.password);
 
-    const token = jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET || 'fallback_secret_123', {
-      expiresIn: '30d'
+    if (isMatch) {
+      console.log(`🔑 User Logged In: ${user.full_name}`);
+
+      res.json({
+        token: generateToken(user.id),
+        user: {
+          id: user.id,
+          full_name: user.full_name,
+          phone: user.phone,
+          language_pref: user.language_pref,
+          location: user.location
+        }
+      });
+    } else {
+      // User exists, but password was wrong
+      res.status(401).json({
+        message: "Invalid password",
+        amharic_message: "ያስገቡት የይለፍ ቃል ትክክል አይደለም።"
+      });
+    }
+  } catch (error) {
+    console.error("🔴 Login Error:", error);
+    res.status(500).json({ message: "Login error", error: error.message });
+  }
+};
+
+/**
+ * 👤 GET USER PROFILE
+ * Required for the Flutter Profile Page
+ */
+exports.getProfile = async (req, res) => {
+  try {
+    // req.user is set by the Auth Middleware (Member 2's task)
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
     });
 
-    res.status(200).json({ success: true, token, user });
-  } catch (err) {
-    console.error('Mobile Login Error:', err);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    if (user) {
+      res.json(user);
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profile", error: error.message });
   }
 };

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/constants/countries.dart'; // Ensure this exists
+import '../../core/constants/countries.dart';
 import 'auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -33,6 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _loadSettings();
   }
 
+  // 🌍 Load settings and trigger Voice Greeting
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -53,19 +54,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await _tts.speak(text);
   }
 
-  // 🛡️ Premium Audio-Visual Validation
+  // 🛡️ Handles Visual, Physical (Vibration), and Auditory Feedback
   void _handleError(String am, String en) {
-    HapticFeedback.heavyImpact();
+    HapticFeedback.heavyImpact(); // Vibrate phone for accessibility
     _speak(isAm ? am : en);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isAm ? am : en),
+        content: Text(
+          isAm ? am : en,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
+  // 🚀 MAIN REGISTRATION LOGIC
   Future<void> _handleRegister() async {
+    // 1. Check basic form validation
     if (!_formKey.currentState!.validate()) {
       _handleError(
         "እባክዎን መረጃዎን በትክክል ያስገቡ",
@@ -74,38 +82,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // 2. Check phone length based on selected country
     if (_phoneController.text.length < _selectedCountry.minLength) {
-      _handleError("ስልክ ቁጥሩ አጭር ነው", "The phone number is too short.");
+      _handleError(
+        "ያስገቡት ስልክ ቁጥር አጭር ነው",
+        "The phone number is too short for ${_selectedCountry.name}.",
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    // Combine Dial Code + Number
+    // 3. Prepare Phone with Dial Code (e.g. +251911...)
     String fullPhone = _selectedCountry.dialCode + _phoneController.text.trim();
 
-    // Connection-Ready: Calls our abstracted AuthService
+    // 4. CALL BACKEND: Wait for the Database to confirm the save
+    // Passing language code so backend saves 'Amharic' or 'English' ENUM
     bool success = await AuthService().register(
       _nameController.text.trim(),
       fullPhone,
       _locationController.text.trim(),
     );
 
-    if (success && mounted) {
+    if (mounted) {
       setState(() => _isLoading = false);
-      _speak(
-        isAm ? "መለያዎ ተፈጥሯል። እንኳን ደህና መጡ" : "Account created. Welcome to KARE.",
-      );
-      context.go('/home');
-    } else {
-      setState(() => _isLoading = false);
+
+      if (success) {
+        // ✅ SUCCESS: Data is in MySQL
+        _speak(
+          isAm
+              ? "መለያዎ ተፈጥሯል። እንኳን ደህና መጡ"
+              : "Account created. Welcome to KARE.",
+        );
+
+        // Navigate and clear the navigation stack
+        context.go('/home');
+      } else {
+        // ❌ FAILURE: Backend error (e.g. phone already exists) or Network Timeout
+        _handleError(
+          "ምዝገባው አልተሳካም። ስልኩ ቀድሞ ተመዝግቧል ወይም ኢንተርኔት የለም",
+          "Registration failed. Number might be taken or server is down.",
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B12),
+      backgroundColor: const Color(0xFF0D1B12), // KARE Deep Dark Green
       body: Stack(
         children: [
           _buildDecor(),
@@ -148,7 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // --- NAME FIELD ---
+                    // --- FULL NAME ---
                     _buildLabel(isAm ? "ሙሉ ስም" : "Full Name"),
                     _buildTextField(
                       _nameController,
@@ -158,7 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 20),
 
-                    // --- PHONE FIELD WITH COUNTRY PICKER ---
+                    // --- PHONE NUMBER ---
                     _buildLabel(isAm ? "ስልክ ቁጥር" : "Phone Number"),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 20),
 
-                    // --- LOCATION FIELD ---
+                    // --- LOCATION ---
                     _buildLabel(isAm ? "ክልል/ከተማ" : "Region/City"),
                     _buildTextField(
                       _locationController,
@@ -181,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 50),
 
-                    // --- REGISTER BUTTON ---
+                    // --- SUBMIT BUTTON ---
                     _buildRegisterButton(),
 
                     const SizedBox(height: 30),
@@ -199,7 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // --- UI COMPONENTS ---
+  // --- UI COMPONENT METHODS ---
 
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -221,7 +246,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextFormField(
       controller: controller,
       style: const TextStyle(color: Colors.white),
-      validator: (v) => v!.isEmpty ? "" : null,
+      validator:
+          (v) => v!.isEmpty ? (isAm ? "ይህ ቦታ ባዶ መሆን የለበትም" : "Required") : null,
       decoration: _inputDecoration(icon, hint),
     );
   }
@@ -315,7 +341,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon != null
               ? Icon(icon, color: const Color(0xFF4CAF50), size: 22)
               : null,
-      hintStyle: const TextStyle(color: Colors.white12),
+      hintStyle: const TextStyle(color: Colors.white10),
       filled: true,
       fillColor: const Color(0xFF1B3022),
       contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 15),
@@ -327,7 +353,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(18),
         borderSide: const BorderSide(color: Color(0xFF4CAF50)),
       ),
-      errorStyle: const TextStyle(height: 0),
+      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 11),
     );
   }
 

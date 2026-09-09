@@ -86,15 +86,53 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     String fullPhone = _selectedCountry.dialCode + _phoneController.text.trim();
 
-    bool success = await AuthService().login(fullPhone);
+    try {
+      bool success = await AuthService().login(fullPhone);
+      if (success && mounted) {
+        context.go('/home');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
 
-    if (success && mounted) {
-      setState(() => _isLoading = false);
-      _speak(isAm ? "እንኳን ደህና መጡ" : "Welcome back");
-      context.go('/home');
-    } else {
-      setState(() => _isLoading = false);
+      if (e == "USER_NOT_FOUND") {
+        _suggestRegistration();
+      } else {
+        _handleValidationError(
+          "የስልክ ቁጥር ወይም የይለፍ ቃል ተሳስቷል",
+          "Invalid credentials",
+        );
+      }
     }
+  }
+
+  // 💎 Professional Suggestion Logic
+  void _suggestRegistration() {
+    HapticFeedback.vibrate();
+
+    // 🔊 Voice Assistant Suggestion
+    _speak(
+      isAm ? "መለያዎ አልተገኘም። እባክዎን ይመዝገቡ" : "Account not found. Please register.",
+    );
+
+    // 📺 Visual SnackBar with Action
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFFB38B4D), // KARE Gold
+        duration: const Duration(seconds: 5),
+        content: Text(
+          isAm ? "መለያ አልተገኘም፤ ይመዝገቡ?" : "Account not found. Register now?",
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        action: SnackBarAction(
+          label: isAm ? "ይመዝገቡ" : "REGISTER",
+          textColor: Colors.white,
+          onPressed: () => context.push('/register'),
+        ),
+      ),
+    );
   }
 
   @override

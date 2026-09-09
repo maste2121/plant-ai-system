@@ -1,10 +1,11 @@
 import 'package:farmer_mobile_app/core/services/assistant_logic_service.dart';
+import 'package:farmer_mobile_app/core/services/ai_assistant_service.dart'; // ✅ Added for Real AI
 import 'package:flutter/material.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:go_router/go_router.dart'; // Ensure GoRouter is imported
+import 'package:go_router/go_router.dart';
 
 class VoiceAssistantOverlay extends StatefulWidget {
   final String lang;
@@ -19,6 +20,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
   final FlutterTts _tts = FlutterTts();
 
   bool _isListening = false;
+  bool _isThinking = false; // ✅ Added to show AI processing state
   String _userSpeech = "";
   String _aiResponse = "";
   bool _sttInitialized = false;
@@ -37,7 +39,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
     );
 
     await _tts.setLanguage(widget.lang == 'am' ? "am-ET" : "en-US");
-    await _tts.setSpeechRate(0.4); // Slower, clearer speed for rural users
+    await _tts.setSpeechRate(0.4);
 
     if (_sttInitialized) {
       _listen();
@@ -50,6 +52,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
 
     setState(() {
       _isListening = true;
+      _isThinking = false;
       _userSpeech = "";
       _aiResponse = "";
     });
@@ -67,26 +70,37 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
     );
   }
 
-  // 🧠 Automatic Processing & Navigation
+  // 🧠 Automatic Processing & Navigation (Updated for Real AI)
   void _processCommand(String text) async {
-    setState(() => _isListening = false);
+    setState(() {
+      _isListening = false;
+      _isThinking = true; // ✅ Show loading while calling Gemini API
+    });
 
-    // 1. Call the logic service (Returns AssistantResponse object)
-    final response = AssistantLogicService.getAnswer(text, widget.lang);
+    // 1. Call the Smart service (Tries local keywords first, then Gemini)
+    // Assumes you created the SmartAssistantService in the previous step
+    final response = await SmartAssistantService.getSmartAnswer(
+      text,
+      widget.lang,
+    );
 
-    setState(() => _aiResponse = response.text);
+    if (!mounted) return;
+
+    setState(() {
+      _aiResponse = response.text;
+      _isThinking = false;
+    });
 
     // 2. AI Speaks the result
     await _tts.speak(response.text);
 
-    // 3. AUTOMATIC NAVIGATION (SRD 4.9 & 6.4)
+    // 3. AUTOMATIC NAVIGATION
     if (response.route != null) {
-      // Small delay so user hears the start of the audio before screen changes
       await Future.delayed(const Duration(milliseconds: 1800));
 
       if (mounted) {
-        Navigator.pop(context); // Close the bottom sheet
-        context.push(response.route!); // Automatic Jump to the page!
+        Navigator.pop(context);
+        context.push(response.route!);
       }
     }
   }
@@ -105,7 +119,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
       decoration: const BoxDecoration(
-        color: Color(0xFF0D1B12), // KARE Dark Green
+        color: Color(0xFF0D1B12),
         borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
       ),
       child: Column(
@@ -125,6 +139,8 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
           Text(
             _isListening
                 ? (isAm ? "እየሰማሁ ነው..." : "Listening...")
+                : _isThinking
+                ? (isAm ? "እያሰብኩ ነው..." : "Thinking...") // ✅ Thinking state
                 : (isAm ? "ረዳት" : "AI Assistant"),
             style: const TextStyle(
               color: Color(0xFF4CAF50),
@@ -149,8 +165,13 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
 
           const SizedBox(height: 15),
 
-          // AI Response Text
-          if (_aiResponse.isNotEmpty)
+          // AI Response Text or Loading Indicator
+          if (_isThinking)
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(color: Colors.blue),
+            )
+          else if (_aiResponse.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -179,7 +200,10 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
               elevation: 8.0,
               shape: const CircleBorder(),
               child: CircleAvatar(
-                backgroundColor: Colors.blue,
+                backgroundColor:
+                    _isThinking
+                        ? Colors.grey
+                        : Colors.blue, // Disable if thinking
                 radius: 40,
                 child: IconButton(
                   icon: Icon(
@@ -187,7 +211,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
                     color: Colors.white,
                     size: 35,
                   ),
-                  onPressed: _isListening ? null : _listen,
+                  onPressed: (_isListening || _isThinking) ? null : _listen,
                 ),
               ),
             ),
