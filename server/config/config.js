@@ -11,7 +11,7 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST || 'mysql-394de76a-mastewalkihnet-7fb8.a.aivencloud.com',
     port: process.env.DB_PORT || 23751,
-    dialect: process.env.DB_DIALECT || 'mysql',
+    dialect: 'mysql', // Hardcoded fallback ensures dialect is never missing
     dialectOptions: {
       ssl: {
         rejectUnauthorized: false // Required for Aiven SSL connection
