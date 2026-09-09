@@ -170,4 +170,10 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
+
+// ... other code ...
+
+// Line 32 should now work:
+router.post('/register', registerUser);
+
 module.exports = router;

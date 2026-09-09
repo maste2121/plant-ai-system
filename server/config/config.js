@@ -10,6 +10,7 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
   {
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: process.env.DB_DIALECT,
     logging: false, // Set to true to see SQL queries in console
     define: {
@@ -31,7 +32,7 @@ const connectDB = async () => {
     console.log('Connection to MySQL has been established successfully.');
 
     // FIX: Set to false so your mock data never gets dropped or wiped on restart!
-    await sequelize.sync({ alter: false, force: false }); 
+    await sequelize.sync({ alter: false, force: false });
     console.log('All models were synchronized successfully.');
 
   } catch (error) {

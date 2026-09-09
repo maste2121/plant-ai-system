@@ -20,6 +20,12 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  // Added Phone field (Crucial for Farmer Login)
+  phone: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
   language_pref: {
     type: DataTypes.ENUM('English', 'Amharic'),
     defaultValue: 'English',
