@@ -1,4 +1,5 @@
 import os
+import uuid
 import joblib
 import numpy as np
 from flask import Flask, request, jsonify
@@ -17,6 +18,14 @@ crop_encoder_path = os.path.join(base_path, 'crop_encoder.pkl')
 disease_model_path = os.path.join(base_path, 'disease_model.pkl')
 disease_scaler_path = os.path.join(base_path, 'disease_scaler.pkl')
 disease_encoder_path = os.path.join(base_path, 'disease_encoder.pkl')
+
+crop_model = None
+crop_scaler = None
+crop_encoder = None
+
+disease_model = None
+disease_scaler = None
+disease_encoder = None
 
 try:
     crop_model = joblib.load(crop_model_path)
@@ -62,13 +71,18 @@ def extract_hog_features(image_path):
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    if disease_model is None or disease_scaler is None or disease_encoder is None:
+        return jsonify({"error": "ML models failed to load on start"}), 500
 
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
     file = request.files['image']
-    file_path = f"temp_{file.filename}"
+    if file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
 
+    # Generate unique filename to avoid collision on server
+    file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
     file.save(file_path)
 
     try:
@@ -82,20 +96,12 @@ def predict():
         prediction_id = disease_model.predict(scaled_features)[0]
 
         # Convert prediction ID to disease name
-        disease_name = disease_encoder.inverse_transform(
-            [prediction_id]
-        )[0]
+        disease_name = disease_encoder.inverse_transform([prediction_id])[0]
 
         # Calculate confidence
         confidence = float(
-            np.max(
-                disease_model.predict_proba(scaled_features)
-            )
+            np.max(disease_model.predict_proba(scaled_features))
         )
-
-        # Remove temporary image
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
         return jsonify({
             "disease_id": int(prediction_id),
@@ -104,19 +110,14 @@ def predict():
         })
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+    finally:
+        # Guarantee cleanup of temporary file
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        return jsonify({
-            "error": str(e)
-        }), 500
-
 
 if __name__ == '__main__':
-    print("🌍 ML Service started on http://127.0.0.1:5001")
-
-    app.run(
-        host='0.0.0.0',
-        port=5001
-    )
+    print("🌍 ML Service started locally")
+    app.run(host='0.0.0.0', port=5000)
