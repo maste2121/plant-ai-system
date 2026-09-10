@@ -6,6 +6,9 @@ import 'package:farmer_mobile_app/features/detection/detection_screen.dart';
 import 'package:farmer_mobile_app/features/detection/result_detail_screen.dart';
 import 'package:farmer_mobile_app/features/detection/result_screen.dart';
 import 'package:farmer_mobile_app/features/history/history_screen.dart';
+import 'package:farmer_mobile_app/features/home/community_screen.dart';
+import 'package:farmer_mobile_app/features/home/expert_screen.dart';
+import 'package:farmer_mobile_app/features/home/market_screen.dart';
 import 'package:farmer_mobile_app/features/notifications/notification_screen.dart';
 import 'package:farmer_mobile_app/features/profile/profile_screen.dart';
 import 'package:farmer_mobile_app/features/profile/settings_screen.dart';
@@ -121,6 +124,27 @@ class AppRouter {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationScreen(),
+      ),
+      GoRoute(
+        path: '/market',
+        name: 'market',
+        builder: (BuildContext context, GoRouterState state) {
+          return const MarketScreen();
+        },
+      ),
+      GoRoute(
+        path: '/expert',
+        name: 'expert',
+        builder: (BuildContext context, GoRouterState state) {
+          return const ExpertScreen();
+        },
+      ),
+      GoRoute(
+        path: '/community',
+        name: 'community',
+        builder: (BuildContext context, GoRouterState state) {
+          return const CommunityScreen();
+        },
       ),
     ],
   );

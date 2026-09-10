@@ -5,13 +5,18 @@ const dotenv = require('dotenv');
 dotenv.config(); // Load environment variables
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
+  process.env.DB_NAME || 'plant_disease_admin',
+  process.env.DB_USER || 'avnadmin',
   process.env.DB_PASSWORD,
   {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT,
+    host: process.env.DB_HOST || 'mysql-394de76a-mastewalkihnet-7fb8.a.aivencloud.com',
+    port: process.env.DB_PORT || 23751,
+    dialect: 'mysql', // Hardcoded fallback ensures dialect is never missing
+    dialectOptions: {
+      ssl: {
+        rejectUnauthorized: false // Required for Aiven SSL connection
+      }
+    },
     logging: false, // Set to true to see SQL queries in console
     define: {
       timestamps: true, // Adds createdAt and updatedAt fields automatically
