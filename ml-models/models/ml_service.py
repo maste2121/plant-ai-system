@@ -2,9 +2,9 @@ import os
 import uuid
 import joblib
 import numpy as np
-from flask import Flask, request, jsonify
-from PIL import Image
 from skimage.feature import hog
+from PIL import Image
+import os
 
 app = Flask(__name__)
 
