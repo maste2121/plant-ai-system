@@ -1,5 +1,8 @@
+
+const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 require('dotenv').config();
 const { connectDB, sequelize } = require('./config/config');
 
@@ -33,7 +36,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-const upload = multer({ storage: storage });
 
 // 3. Mount Routes
 app.use('/api/users', userRoutes);
