@@ -20,7 +20,7 @@ const generateToken = (id) => {
  */
 exports.registerUser = async (req, res) => {
   try {
-    const { full_name, phone_number, location } = req.body;
+    const { full_name, phone, password, location, language_pref, email } = req.body;
 
     // 1. Check if user already exists (Phone is the primary ID)
     const userExists = await User.findOne({ where: { phone } });
@@ -35,7 +35,7 @@ exports.registerUser = async (req, res) => {
     // 3. Create User in MySQL via Sequelize
     const user = await User.create({
       full_name,
-      phone_number,
+      phone,
       location,
       language_pref: language_pref || 'Amharic',
       email: email || null,
