@@ -10,7 +10,7 @@ const bcrypt = require('bcrypt');
 const generateToken = (id) => {
   return jwt.sign(
     { id },
-    process.env.JWT_SECRET || 'kare_secret_key_2024',
+    process.env.JWT_SECRET || 'fallback_secret_123',
     { expiresIn: '30d' }
   );
 };
