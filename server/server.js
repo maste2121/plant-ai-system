@@ -12,7 +12,11 @@ dotenv.config();
 const app = express();
 
 // 1. Global Middlewares
-app.use(cors()); // Critical for Flutter and Web testing
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+})); // Critical for Flutter and Web testing
 app.use(express.json()); // Body parser for JSON
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,7 +60,7 @@ app.use((err, req, res, next) => {
 });
 
 // 6. Start Server & Sync Database
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {

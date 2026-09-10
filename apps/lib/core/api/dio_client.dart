@@ -14,7 +14,7 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         // 2. Updated with your REAL IP for mobile testing (Member 2/Backend IP)
-        baseUrl: 'http://192.168.215.100:3000/api',
+        baseUrl: 'http://192.168.215.100:5000/api',
         connectTimeout: const Duration(
           seconds: 20,
         ), // Increased for AI processing
