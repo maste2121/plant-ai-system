@@ -27,13 +27,14 @@ exports.detectDisease = async (req, res) => {
       contentType: req.file.mimetype,
     });
 
-    // 4. 🚀 Call Python ML Service (Port 5000)
-    const pythonResponse = await axios.post('http://127.0.0.1:5000/predict', form, {
+    // 4. 🚀 Call Python ML Service (Render Cloud / Environment URL)
+    const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-ai-system-1.onrender.com';
+    const pythonResponse = await axios.post(`${ML_SERVICE_URL}/predict`, form, {
       headers: { ...form.getHeaders() }
     });
 
     const aiData = pythonResponse.data;
-    const aiName = aiData.disease_en.trim();
+    const aiName = (aiData.disease_en || aiData.result || '').trim();
 
     // 5. 🔍 Find the Disease record AND the associated Crop Name
     // FIX: Using wildcards (%) around the AI name to match long DB strings
@@ -60,10 +61,10 @@ exports.detectDisease = async (req, res) => {
       user_id: req.user.id,
       crop_id: cropId,
       ai_predicted_disease_id: diseaseId,
-      disease_en: aiData.disease_en,
-      disease_am: aiData.disease_am,
+      disease_en: aiData.disease_en || aiData.result,
+      disease_am: aiData.disease_am || null,
       confidence_level: aiData.confidence,
-      status: aiData.disease_en.toLowerCase().includes('healthy') ? "Healthy" : "Disease",
+      status: (aiData.disease_en || aiData.result || '').toLowerCase().includes('healthy') ? "Healthy" : "Disease",
       image_url: "captured_leaf.jpg",
       lat: req.body.lat || "9.03",
       lng: req.body.lng || "38.74",
@@ -177,14 +178,14 @@ exports.addDisease = async (req, res) => {
     }
 
     const disease = await Disease.create({
-      disease_name, crop_id, status: status || 'Active', 
+      disease_name, crop_id, status: status || 'Active',
       display_name_en, display_name_am,
-      description_en, description_am, 
-      symptoms_en, symptoms_am, 
-      causes_en, causes_am, 
-      treatment_organic_en, treatment_organic_am, 
-      treatment_chemical_en, treatment_chemical_am, 
-      prevention_tips_en, prevention_tips_am, 
+      description_en, description_am,
+      symptoms_en, symptoms_am,
+      causes_en, causes_am,
+      treatment_organic_en, treatment_organic_am,
+      treatment_chemical_en, treatment_chemical_am,
+      prevention_tips_en, prevention_tips_am,
       image_url
     });
 
