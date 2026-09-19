@@ -14,6 +14,7 @@ const sequelize = new Sequelize(
     dialect: 'mysql', // Hardcoded fallback ensures dialect is never missing
     dialectOptions: {
       ssl: {
+        require: true,
         rejectUnauthorized: false // Required for Aiven SSL connection
       }
     },
