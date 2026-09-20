@@ -170,6 +170,20 @@ exports.addDisease = async (req, res) => {
       treatment_organic,
       treatment_chemical,
       prevention_tips,
+      display_name_en,
+      display_name_am,
+      description_en,
+      description_am,
+      symptoms_en,
+      symptoms_am,
+      causes_en,
+      causes_am,
+      treatment_organic_en,
+      treatment_organic_am,
+      treatment_chemical_en,
+      treatment_chemical_am,
+      prevention_tips_en,
+      prevention_tips_am,
       image_url
     } = req.body;
 
