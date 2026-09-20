@@ -1,4 +1,3 @@
-
 const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
@@ -69,10 +68,12 @@ const startServer = async () => {
     // Ensure MySQL connects
     await connectDB();
 
-    // ✅ Sync models (Creates/Updates tables like 'scans' automatically)
-    // Use { alter: true } in development to update tables without deleting data
-    await sequelize.sync({ alter: true });
-    console.log("🚀 Database tables synced.");
+    // ✅ Sync models — creates missing tables without altering existing ones.
+    // NOTE: Do NOT use { alter: true } in production — it re-adds UNIQUE
+    // constraints on every restart, eventually hitting MySQL's 64-key limit
+    // (ER_TOO_MANY_KEYS). Use migrations for schema changes instead.
+    await sequelize.sync();
+    console.log("🚀 Database tables verified.");
 
     // Listen on '0.0.0.0' so your Flutter app can connect via your PC's IP address
     app.listen(PORT, '0.0.0.0', () => {
