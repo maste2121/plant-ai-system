@@ -90,8 +90,6 @@ exports.detectDisease = async (req, res) => {
 
 // @desc    Fetch Scan History for the specific logged-in User
 // @route   GET /api/users/history
-// @desc    Fetch Scan History for the specific logged-in User
-// @route   GET /api/users/history
 exports.getUserHistory = async (req, res) => {
   try {
     console.log(`📜 Fetching history for User ID: ${req.user.id}`);
@@ -106,8 +104,26 @@ exports.getUserHistory = async (req, res) => {
         },
         {
           model: Disease,
-          // Removed disease_am from here to prevent the crash if it's missing in DB
-          attributes: ['disease_name', 'treatment_organic', 'symptoms', 'description']
+          // ✅ FIXED: real column names from models/Disease.js
+          attributes: [
+            'disease_name',
+            'display_name_en',
+            'display_name_am',
+            'disease_am',
+            'description_en',
+            'description_am',
+            'symptoms_en',
+            'symptoms_am',
+            'causes_en',
+            'causes_am',
+            'treatment_organic_en',
+            'treatment_organic_am',
+            'treatment_chemical_en',
+            'treatment_chemical_am',
+            'prevention_tips_en',
+            'prevention_tips_am',
+            'image_url',
+          ]
         }
       ]
     });
