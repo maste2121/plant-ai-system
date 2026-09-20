@@ -23,28 +23,20 @@ exports.registerUser = async (req, res) => {
   try {
     const { full_name, phone, password, location, language_pref, email } = req.body;
 
-    // 1. Check if user already exists
-    const userExists = await User.findOne({
-      where: { phone_number: phone }
-    });
-
+    // 1. Check if user already exists (Phone is the primary ID)
+    const userExists = await User.findOne({ where: { phone } });
     if (userExists) {
-      return res.status(400).json({
-        message: "Phone number already registered"
-      });
+      return res.status(400).json({ message: "Phone number already registered" });
     }
 
-    // 2. Hash password
+    // 2. Hash password (Security standard)
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(
-      password || 'password123',
-      salt
-    );
+    const hashedPassword = await bcrypt.hash(password || 'password123', salt);
 
     // 3. Create User in MySQL via Sequelize
     const user = await User.create({
       full_name,
-      phone_number: phone,
+      phone,
       location,
       language_pref: language_pref || 'Amharic',
       email: email || null,
@@ -53,25 +45,20 @@ exports.registerUser = async (req, res) => {
 
     console.log(`✅ New User Registered: ${full_name} (${phone})`);
 
-    // 4. Return success data matching Flutter AuthService
+    // 4. Return success data matching Flutter AuthService spelling
     res.status(201).json({
       token: generateToken(user.id),
       user: {
         id: user.id,
         full_name: user.full_name,
-        phone: user.phone_number,
+        phone: user.phone,
         language_pref: user.language_pref,
         location: user.location
       }
     });
-
   } catch (error) {
     console.error("🔴 Registration Error:", error);
-
-    res.status(500).json({
-      message: "Server error during registration",
-      error: error.message
-    });
+    res.status(500).json({ message: "Server error during registration", error: error.message });
   }
 };
 
@@ -88,11 +75,10 @@ exports.loginUser = async (req, res) => {
     const { phone, password } = req.body;
 
     // 1. Find user in Database
-    const user = await User.findOne({
-      where: { phone_number: phone }
-    });
+    const user = await User.findOne({ where: { phone } });
 
-    // If user is not found
+    // 🟢 NEW UPDATE: If user is not found, return 404 (Not Found)
+    // This tells Flutter to suggest the registration page
     if (!user) {
       return res.status(404).json({
         message: "Account not found. Please register first.",
@@ -102,10 +88,7 @@ exports.loginUser = async (req, res) => {
     }
 
     // 2. Compare passwords
-    const isMatch = await bcrypt.compare(
-      password || 'password123',
-      user.password
-    );
+    const isMatch = await bcrypt.compare(password || 'password123', user.password);
 
     if (isMatch) {
       console.log(`🔑 User Logged In: ${user.full_name}`);
@@ -115,7 +98,7 @@ exports.loginUser = async (req, res) => {
         user: {
           id: user.id,
           full_name: user.full_name,
-          phone: user.phone_number,
+          phone: user.phone,
           language_pref: user.language_pref,
           location: user.location
         }
@@ -129,13 +112,10 @@ exports.loginUser = async (req, res) => {
     }
   } catch (error) {
     console.error("🔴 Login Error:", error);
-
-    res.status(500).json({
-      message: "Login error",
-      error: error.message
-    });
+    res.status(500).json({ message: "Login error", error: error.message });
   }
 };
+
 /**
  * 👤 GET USER PROFILE
  * Required for the Flutter Profile Page

@@ -4,9 +4,11 @@ import joblib
 import numpy as np
 from PIL import Image
 from skimage.feature import hog
-from flask import Flask, request, jsonify  # Added missing Flask imports
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # ✅ allow Flutter Web / any origin
 
 # --- LOAD MODELS ---
 base_path = os.path.dirname(__file__)
@@ -37,12 +39,27 @@ try:
     disease_encoder = joblib.load(disease_encoder_path)
 
     print("✅ AI Brain: Scikit-Learn models loaded successfully with Joblib!")
-
 except Exception as e:
     print(f"⚠️ AI Brain Warning: Could not load models ({e})")
     print("🚀 System may not be able to perform predictions.")
 
 
+# --- ROOT / HEALTH ---
+@app.route('/')
+def home():
+    return jsonify({
+        "service": "KARE AI ML Service",
+        "status": "Healthy",
+        "models_loaded": disease_model is not None,
+        "endpoints": ["/predict", "/health"],
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok", "models_loaded": disease_model is not None}), 200
+
+
+# --- FEATURE EXTRACTION ---
 def extract_hog_features(image_path):
     with Image.open(image_path) as img:
         img = img.convert('L').resize((128, 128))
@@ -52,23 +69,19 @@ def extract_hog_features(image_path):
             orientations=9,
             pixels_per_cell=(16, 16),
             cells_per_block=(2, 2),
-            transform_sqrt=True
+            transform_sqrt=True,
         )
 
         target_length = 1780
-
         if len(features) < target_length:
-            features = np.pad(
-                features,
-                (0, target_length - len(features)),
-                'constant'
-            )
+            features = np.pad(features, (0, target_length - len(features)), 'constant')
         else:
             features = features[:target_length]
 
         return features
 
 
+# --- PREDICT ---
 @app.route('/predict', methods=['POST'])
 def predict():
     if disease_model is None or disease_scaler is None or disease_encoder is None:
@@ -81,43 +94,39 @@ def predict():
     if file.filename == '':
         return jsonify({"error": "Empty filename"}), 400
 
-    # Generate unique filename to avoid collision on server
-    file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+    file_path = f"temp_{uuid.uuid4().hex}.jpg"
     file.save(file_path)
 
     try:
-        # Extract HOG features
         features = extract_hog_features(file_path)
-
-        # Scale features
         scaled_features = disease_scaler.transform([features])
 
-        # Predict disease
         prediction_id = disease_model.predict(scaled_features)[0]
-
-        # Convert prediction ID to disease name
         disease_name = disease_encoder.inverse_transform([prediction_id])[0]
+        confidence = float(np.max(disease_model.predict_proba(scaled_features)))
 
-        # Calculate confidence
-        confidence = float(
-            np.max(disease_model.predict_proba(scaled_features))
-        )
+        # ✅ Return keys the Node backend expects
+        disease_str = str(disease_name)
+        is_healthy = "healthy" in disease_str.lower()
 
         return jsonify({
             "disease_id": int(prediction_id),
-            "result": str(disease_name),
-            "confidence": confidence
+            "disease_en": disease_str,
+            "disease_am": disease_str,   # replace with real Amharic map if you have one
+            "result": disease_str,        # keep for backward-compat
+            "status": "Healthy" if is_healthy else "Disease",
+            "confidence": confidence,
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
     finally:
-        # Guarantee cleanup of temporary file
         if os.path.exists(file_path):
             os.remove(file_path)
 
 
+# --- START ---
 if __name__ == '__main__':
-    print("🌍 ML Service started locally")
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🌍 ML Service started on port {port}")
+    app.run(host='0.0.0.0', port=port)
