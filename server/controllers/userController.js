@@ -34,9 +34,11 @@ exports.registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password || 'password123', salt);
 
     // 3. Create User in MySQL via Sequelize
+    // ✅ FIX: populate phone_number as well so the NOT NULL constraint is satisfied
     const user = await User.create({
       full_name,
       phone,
+      phone_number: phone,                 // ← only addition
       location,
       language_pref: language_pref || 'Amharic',
       email: email || null,
