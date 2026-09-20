@@ -1,32 +1,39 @@
 // client/src/pages/AdminAuth.jsx
-import React, { useState } from 'react';
-import axios from 'axios';
-import { Lock, Mail, AlertCircle, ShieldAlert, Terminal } from 'lucide-react';
+import React, { useState } from "react";
+import axios from "axios";
+import { Lock, Mail, AlertCircle, ShieldAlert, Terminal } from "lucide-react";
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://plant-ai-system.onrender.com";
 
 const AdminAuth = ({ onAuthSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
-    
+
     try {
-      const res = await axios.post('http://localhost:5000/api/admin/login', {
+      const res = await axios.post(`${API_URL}/api/admin/login`, {
         email,
-        password
+        password,
       });
 
       if (res.data.success) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('adminEmail', res.data.admin.email);
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("adminEmail", res.data.admin.email);
         if (onAuthSuccess) onAuthSuccess();
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.msg || 'Authentication failed.');
+      setError(
+        err.response?.data?.message ||
+          err.response?.data?.msg ||
+          "Authentication failed."
+      );
     } finally {
       setLoading(false);
     }
@@ -35,16 +42,21 @@ const AdminAuth = ({ onAuthSuccess }) => {
   return (
     <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-4 antialiased font-sans">
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px]">
-        
         {/* LEFT PANEL: Project Brand Context (Matches Sidebar Styles) */}
         <div className="w-full md:w-5/12 bg-slate-950 p-8 flex flex-col justify-between text-white border-r border-slate-800">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] tracking-widest font-bold text-slate-400 uppercase">System Core</span>
+              <span className="text-[10px] tracking-widest font-bold text-slate-400 uppercase">
+                System Core
+              </span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-emerald-400 uppercase">Plant AI</h1>
-            <p className="text-slate-400 text-xs mt-1 font-medium">Agricultural Pathology Database</p>
+            <h1 className="text-2xl font-black tracking-tight text-emerald-400 uppercase">
+              Plant AI
+            </h1>
+            <p className="text-slate-400 text-xs mt-1 font-medium">
+              Agricultural Pathology Database
+            </p>
           </div>
 
           <div className="my-8 space-y-4">
@@ -52,7 +64,9 @@ const AdminAuth = ({ onAuthSuccess }) => {
               <div className="flex items-center gap-2 text-amber-400 font-bold mb-1.5 uppercase tracking-wider text-[10px]">
                 <ShieldAlert size={14} /> Security Protocol
               </div>
-              This terminal controls localized crop disease indices, dynamic regional breakout tracking tables, and real-time farmer alerts. Unauthorized access attempts are logged natively.
+              This terminal controls localized crop disease indices, dynamic
+              regional breakout tracking tables, and real-time farmer alerts.
+              Unauthorized access attempts are logged natively.
             </div>
           </div>
 
@@ -65,8 +79,12 @@ const AdminAuth = ({ onAuthSuccess }) => {
         {/* RIGHT PANEL: Pure Credentials Login Form */}
         <div className="w-full md:w-7/12 p-8 lg:p-12 flex flex-col justify-center bg-white">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">System Sign In</h2>
-            <p className="text-slate-500 text-sm mt-1">Provide master administrative access credentials.</p>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              System Sign In
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">
+              Provide master administrative access credentials.
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -85,7 +103,7 @@ const AdminAuth = ({ onAuthSuccess }) => {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
                   <Mail size={16} />
                 </span>
-                <input 
+                <input
                   type="email"
                   required
                   value={email}
@@ -104,7 +122,7 @@ const AdminAuth = ({ onAuthSuccess }) => {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
                   <Lock size={16} />
                 </span>
-                <input 
+                <input
                   type="password"
                   required
                   value={password}
@@ -120,11 +138,10 @@ const AdminAuth = ({ onAuthSuccess }) => {
               disabled={loading}
               className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl text-xs transition-all duration-150 uppercase tracking-wider shadow-md active:scale-[0.99] mt-2"
             >
-              {loading ? 'Decrypting Access Token...' : 'Authorize Session'}
+              {loading ? "Decrypting Access Token..." : "Authorize Session"}
             </button>
           </form>
         </div>
-
       </div>
     </div>
   );
