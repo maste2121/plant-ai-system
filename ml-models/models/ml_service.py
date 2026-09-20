@@ -72,7 +72,7 @@ def extract_hog_features(image_path):
             transform_sqrt=True,
         )
 
-        target_length = 1780
+        target_length = 1764
         if len(features) < target_length:
             features = np.pad(features, (0, target_length - len(features)), 'constant')
         else:
