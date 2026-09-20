@@ -83,8 +83,17 @@ exports.detectDisease = async (req, res) => {
     });
 
   } catch (error) {
+    // ✅ NEW: reveal what the ML service actually said
     console.error("🔴 Detection Error:", error.message);
-    res.status(500).json({ message: "AI Service error", error: error.message });
+    console.error("🔴 ML Status:", error.response?.status);
+    console.error("🔴 ML Body:", JSON.stringify(error.response?.data, null, 2));
+
+    res.status(500).json({
+      message: "AI Service error",
+      error: error.message,
+      ml_status: error.response?.status,
+      ml_body: error.response?.data,
+    });
   }
 };
 
