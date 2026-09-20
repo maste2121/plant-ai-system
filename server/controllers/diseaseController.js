@@ -28,10 +28,37 @@ exports.detectDisease = async (req, res) => {
     });
 
     // 4. 🚀 Call Python ML Service (Render Cloud / Environment URL)
-    const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-ai-system-1.onrender.com';
-    const pythonResponse = await axios.post(`${ML_SERVICE_URL}/predict`, form, {
-      headers: { ...form.getHeaders() }
-    });
+    // ✅ Sanitize the base URL (strip quotes, whitespace, trailing slashes)
+    const rawBase = process.env.ML_SERVICE_URL || 'https://plant-ai-system-1.onrender.com';
+    const ML_BASE = rawBase
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .replace(/\/+$/, '');
+    const ML_ENDPOINT = ML_BASE.endsWith('/predict') ? ML_BASE : `${ML_BASE}/predict`;
+
+    console.log('🔍 Calling ML:', ML_ENDPOINT);
+
+    // ✅ Retry on 502/503/no-response (Render free-tier cold start)
+    async function callML(formData, attempt = 1) {
+      try {
+        return await axios.post(ML_ENDPOINT, formData, {
+          headers: { ...formData.getHeaders() },
+          timeout: 120000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        });
+      } catch (err) {
+        const status = err.response?.status;
+        if (attempt < 3 && (status === 502 || status === 503 || !err.response)) {
+          console.log(`⏳ ML cold start (${status || 'no response'}), retry ${attempt}/3 in 5s...`);
+          await new Promise((r) => setTimeout(r, 5000));
+          return callML(formData, attempt + 1);
+        }
+        throw err;
+      }
+    }
+
+    const pythonResponse = await callML(form);
 
     const aiData = pythonResponse.data;
     const aiName = (aiData.disease_en || aiData.result || '').trim();
