@@ -6,43 +6,64 @@ import { Leaf, Users, Camera, BarChart3, Activity } from "lucide-react";
 const API_URL =
   process.env.REACT_APP_API_URL || "https://plant-ai-system.onrender.com";
 
-// ✅ Helper: safely parse raw_ai_result JSON string into display values
+// ✅ Robust helper — parses disease name from ANY field, even if the field
+//    itself contains a JSON string (as your backend currently returns it)
 const parseScanResult = (scan) => {
-  const result = {
-    diseaseEn: scan.disease_name || null,
-    confidence:
-      scan.confidence_level != null ? Number(scan.confidence_level) : null,
-    crop: scan.crop_name || null,
-  };
+  let diseaseEn = null;
+  let parsed = {};
 
-  const raw = scan.raw_ai_result;
-  if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
-    try {
-      const parsed = JSON.parse(raw);
-      result.diseaseEn =
-        result.diseaseEn || parsed.disease_en || parsed.result || "Unknown";
-      if (result.confidence == null) {
-        result.confidence = Number(parsed.confidence) || 0;
+  // Try each candidate field in order of preference
+  const candidates = [scan.disease_name, scan.disease_en, scan.raw_ai_result];
+
+  for (const raw of candidates) {
+    if (raw == null) continue;
+
+    // Case 1: it's a JSON string like "{\"disease_en\":\"Cordana\"}"
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+      try {
+        const p = JSON.parse(raw);
+        diseaseEn = p.disease_en || p.result || null;
+        parsed = p;
+        if (diseaseEn) break;
+      } catch (_) {
+        // Not valid JSON — try next candidate
       }
-    } catch (_) {
-      // not valid JSON — ignore
     }
-  } else if (
-    typeof raw === "string" &&
-    raw.trim().length > 0 &&
-    !raw.startsWith("{")
-  ) {
-    // plain string like "Healthy" or "Cordana"
-    result.diseaseEn = result.diseaseEn || raw;
+    // Case 2: it's already an object
+    else if (typeof raw === "object" && !Array.isArray(raw)) {
+      diseaseEn = raw.disease_en || raw.result || null;
+      parsed = raw;
+      if (diseaseEn) break;
+    }
+    // Case 3: it's a plain string like "Cordana"
+    else if (
+      typeof raw === "string" &&
+      raw.trim().length > 0 &&
+      !raw.startsWith("{")
+    ) {
+      diseaseEn = raw;
+      break;
+    }
   }
 
-  // Normalize confidence to percentage (0-100)
-  if (result.confidence != null) {
-    result.confidence =
-      result.confidence > 1 ? result.confidence : result.confidence * 100;
+  // Confidence: prefer DB column, then parsed JSON
+  const confidenceRaw = scan.confidence_level ?? parsed.confidence ?? null;
+  let confidence = confidenceRaw != null ? Number(confidenceRaw) : null;
+  if (confidence != null) {
+    confidence = confidence > 1 ? confidence : confidence * 100;
   }
 
-  return result;
+  // Crop: ignore "N/A" placeholder
+  const crop =
+    scan.crop_name && scan.crop_name !== "N/A"
+      ? scan.crop_name
+      : parsed.crop_name || null;
+
+  return {
+    diseaseEn: diseaseEn || "Unknown",
+    confidence,
+    crop,
+  };
 };
 
 const AdminDashboard = () => {
