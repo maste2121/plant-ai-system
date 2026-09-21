@@ -4,6 +4,32 @@ const Crop = require('../models/Crop');
 const axios = require('axios');
 const FormData = require('form-data');
 const { Op } = require('sequelize');
+const cloudinary = require('../config/cloudinary'); // ✅ ADDED
+
+// ============================================================
+// ☁️ CLOUDINARY UPLOAD HELPER
+// ============================================================
+async function uploadToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          folder: 'plant-ai/scans',
+          resource_type: 'image',
+          transformation: [
+            { width: 800, height: 800, crop: 'limit' },
+            { quality: 'auto:good' },
+            { fetch_format: 'auto' },
+          ],
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        }
+      )
+      .end(buffer);
+  });
+}
 
 // @desc    Analyze image using Python AI and save result to Scan history
 // @route   POST /api/users/predict
@@ -18,6 +44,16 @@ exports.detectDisease = async (req, res) => {
     // 2. Check if Multer caught the image
     if (!req.file) {
       return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    // 2.5 ✅ Upload image to Cloudinary
+    let imageUrl = "captured_leaf.jpg";
+    try {
+      imageUrl = await uploadToCloudinary(req.file.buffer);
+      console.log('☁️ Uploaded to Cloudinary:', imageUrl);
+    } catch (err) {
+      console.error('⚠️ Cloudinary upload failed:', err.message);
+      // Continue anyway — don't block the scan
     }
 
     // 3. Prepare FormData for Python ML Service
@@ -92,7 +128,7 @@ exports.detectDisease = async (req, res) => {
       disease_am: aiData.disease_am || null,
       confidence_level: aiData.confidence,
       status: (aiData.disease_en || aiData.result || '').toLowerCase().includes('healthy') ? "Healthy" : "Disease",
-      image_url: "captured_leaf.jpg",
+      image_url: imageUrl, // ✅ Real Cloudinary URL
       lat: req.body.lat || "9.03",
       lng: req.body.lng || "38.74",
       raw_ai_result: JSON.stringify(aiData)
@@ -106,7 +142,8 @@ exports.detectDisease = async (req, res) => {
       crop_id: newScan.crop_id,
       crop_name: cropName,
       disease_id: newScan.ai_predicted_disease_id,
-      status: newScan.status
+      status: newScan.status,
+      image_url: imageUrl // ✅ Return so Flutter can display immediately
     });
 
   } catch (error) {
@@ -198,10 +235,30 @@ exports.getScanById = async (req, res) => {
 // @route   DELETE /api/users/history/:id
 exports.deleteScan = async (req, res) => {
   try {
-    const result = await Scan.destroy({
+    // ✅ NEW: Find scan first to get Cloudinary image URL
+    const scan = await Scan.findOne({
       where: { id: req.params.id, user_id: req.user.id }
     });
-    if (!result) return res.status(404).json({ message: "Scan not found" });
+    if (!scan) return res.status(404).json({ message: "Scan not found" });
+
+    // ✅ NEW: Delete Cloudinary image if present
+    if (scan.image_url && scan.image_url.includes('cloudinary.com')) {
+      try {
+        const parts = scan.image_url.split('/');
+        const fileWithExt = parts[parts.length - 1];
+        const folder = parts[parts.length - 2];
+        const publicId = `plant-ai/${folder}/${fileWithExt.split('.')[0]}`;
+
+        await cloudinary.uploader.destroy(publicId);
+        console.log('☁️ Cloudinary image deleted:', publicId);
+      } catch (err) {
+        console.error('⚠️ Cloudinary delete failed:', err.message);
+      }
+    }
+
+    await Scan.destroy({
+      where: { id: req.params.id, user_id: req.user.id }
+    });
     res.json({ success: true, message: "Scan deleted from history" });
   } catch (error) {
     res.status(500).json({ message: "Delete failed" });

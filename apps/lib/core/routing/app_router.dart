@@ -56,44 +56,42 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra;
 
-          // 🛡️ 1. Handle case where extra is just a File (Legacy/Simple view)
+          // Case A: plain File
           if (extra is File) {
-            return ResultDetailScreen(
+            return ResultScreen(
               image: extra,
-              resultData: const {
+              data: const {
                 "disease_am": "በሂደት ላይ...",
                 "disease_en": "Loading...",
                 "confidence": 0.0,
-                "treatments": {},
               },
             );
           }
 
-          // 🛡️ 2. Handle case where extra is a Map (Real Data)
+          // Case B: Map with data
           if (extra is Map) {
-            // ✅ THE CRITICAL FIX: Convert generic Map to strictly typed Map<String, dynamic>
-            final Map<String, dynamic> params = Map<String, dynamic>.from(
-              extra,
-            );
+            final params = Map<String, dynamic>.from(extra);
 
-            // Case A: Mock/Previous logic using 'result' object
-            if (params.containsKey('result')) {
-              return ResultScreen(
-                image: params['image'] as File,
-                result: params['result'] as DiseaseResult,
-              );
+            File? image;
+            final rawImage = params['image'];
+            if (rawImage is File && rawImage.path.isNotEmpty) {
+              image = rawImage;
             }
-            // Case B: Real AI logic using 'data' Map from Node.js
-            else if (params.containsKey('data')) {
-              return ResultDetailScreen(
-                image: params['image'] as File,
-                // ✅ FIX: Also cast the nested AI data map
-                resultData: Map<String, dynamic>.from(params['data']),
-              );
+
+            Map<String, dynamic> data = {};
+            final rawData = params['data'];
+            if (rawData is Map<String, dynamic>) {
+              data = rawData;
+            } else if (rawData is Map) {
+              data = Map<String, dynamic>.from(rawData);
+            } else if (params['result'] is Map) {
+              data = Map<String, dynamic>.from(params['result'] as Map);
             }
+
+            return ResultScreen(image: image, data: data);
           }
 
-          // 3. Fallback
+          // Fallback
           return const Scaffold(
             body: Center(child: Text("Error: Invalid navigation data")),
           );
