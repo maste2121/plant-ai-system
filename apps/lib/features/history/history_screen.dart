@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
+import 'dart:convert'; // ✅ ADDED: for jsonDecode
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
@@ -65,6 +66,59 @@ class _HistoryScreenState extends State<HistoryScreen> {
   double _parseCoordinate(dynamic value, double defaultValue) {
     if (value == null) return defaultValue;
     return double.tryParse(value.toString()) ?? defaultValue;
+  }
+
+  // ✅ IMPROVED: parses nested Disease object, flat fields, AND raw_ai_result JSON
+  String _getDiseaseName(Map<String, dynamic> item, {bool amharic = false}) {
+    // 1) Nested Disease object (ideal — when DB match succeeded)
+    final nested =
+        amharic
+            ? (item['Disease']?['display_name_am'] ??
+                item['Disease']?['disease_am'])
+            : (item['Disease']?['display_name_en'] ??
+                item['Disease']?['disease_name']);
+    if (nested != null && nested.toString().isNotEmpty) {
+      return nested.toString();
+    }
+
+    // 2) Flat fields on the scan itself
+    final flat =
+        amharic
+            ? item['disease_am']
+            : (item['disease_name'] ?? item['disease_en']);
+    if (flat != null && flat.toString().isNotEmpty) {
+      return flat.toString();
+    }
+
+    // 3) Parse raw_ai_result — may be a JSON string like
+    //    {"disease_en":"Early-Leaf-Spot","disease_am":"Early-Leaf-Spot",...}
+    final raw = item['raw_ai_result'];
+    if (raw != null) {
+      try {
+        final parsed =
+            raw is String
+                ? jsonDecode(raw) as Map<String, dynamic>
+                : raw as Map<String, dynamic>;
+
+        final fromRaw =
+            amharic
+                ? (parsed['disease_am'] ?? parsed['result'])
+                : (parsed['disease_en'] ?? parsed['result']);
+
+        if (fromRaw != null && fromRaw.toString().isNotEmpty) {
+          return fromRaw.toString();
+        }
+      } catch (_) {
+        // Not valid JSON — use the raw string as-is if it looks meaningful
+        final s = raw.toString();
+        if (s.isNotEmpty && s != 'null' && !s.startsWith('{')) {
+          return s;
+        }
+      }
+    }
+
+    // 4) Nothing found
+    return amharic ? '' : 'Unknown';
   }
 
   @override
@@ -214,7 +268,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        // ✅ FIX: Pass an empty File object instead of 'null' to prevent the subtype error
+        // ✅ Pass an empty File object instead of 'null' to prevent the subtype error
         onTap:
             () => context.push(
               '/result',
@@ -242,20 +296,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ✅ Reads nested Disease, flat field, or parses raw_ai_result
                     Text(
-                      item['disease_en'] ?? "Unknown",
+                      _getDiseaseName(item),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      item['disease_am'] ?? "",
+                      _getDiseaseName(item, amharic: true),
                       style: GoogleFonts.notoSansEthiopic(
                         color: Colors.white70,
                         fontSize: 13,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       DateFormat('jm').format(date),
@@ -340,7 +399,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item['disease_en'] ?? "Unknown",
+                        _getDiseaseName(item),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -355,7 +414,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  // ✅ FIX: Pass an empty File object instead of 'null'
                   onPressed:
                       () => context.push(
                         '/result',
