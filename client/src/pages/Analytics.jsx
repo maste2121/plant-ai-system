@@ -3,7 +3,7 @@ import axios from "axios";
 import { TrendingUp, Map, AlertCircle, RefreshCw } from "lucide-react";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "https://plant-ai-system.onrender.com";
+  process.env.REACT_APP_API_URL || "https://plant-ai-system.onrender.com";
 
 const Analytics = () => {
   const [timeframe, setTimeframe] = useState("weekly");

@@ -4,7 +4,7 @@ import axios from "axios";
 import { Leaf, Users, Camera, BarChart3, Activity } from "lucide-react";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "https://plant-ai-system.onrender.com";
+  process.env.REACT_APP_API_URL || "https://plant-ai-system.onrender.com";
 
 const AdminDashboard = () => {
   const [liveStats, setLiveStats] = useState({
