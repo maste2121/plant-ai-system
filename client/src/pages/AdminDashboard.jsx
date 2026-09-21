@@ -6,6 +6,45 @@ import { Leaf, Users, Camera, BarChart3, Activity } from "lucide-react";
 const API_URL =
   process.env.REACT_APP_API_URL || "https://plant-ai-system.onrender.com";
 
+// ✅ Helper: safely parse raw_ai_result JSON string into display values
+const parseScanResult = (scan) => {
+  const result = {
+    diseaseEn: scan.disease_name || null,
+    confidence:
+      scan.confidence_level != null ? Number(scan.confidence_level) : null,
+    crop: scan.crop_name || null,
+  };
+
+  const raw = scan.raw_ai_result;
+  if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      result.diseaseEn =
+        result.diseaseEn || parsed.disease_en || parsed.result || "Unknown";
+      if (result.confidence == null) {
+        result.confidence = Number(parsed.confidence) || 0;
+      }
+    } catch (_) {
+      // not valid JSON — ignore
+    }
+  } else if (
+    typeof raw === "string" &&
+    raw.trim().length > 0 &&
+    !raw.startsWith("{")
+  ) {
+    // plain string like "Healthy" or "Cordana"
+    result.diseaseEn = result.diseaseEn || raw;
+  }
+
+  // Normalize confidence to percentage (0-100)
+  if (result.confidence != null) {
+    result.confidence =
+      result.confidence > 1 ? result.confidence : result.confidence * 100;
+  }
+
+  return result;
+};
+
 const AdminDashboard = () => {
   const [liveStats, setLiveStats] = useState({
     totalScans: "...",
@@ -150,44 +189,51 @@ const AdminDashboard = () => {
               No farm scans recorded in MySQL database yet.
             </p>
           ) : (
-            recentScans.map((scan) => (
-              <div
-                key={scan.id}
-                className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      scan.raw_ai_result === "Healthy"
-                        ? "bg-green-100 text-green-600"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {scan.disease_name
-                      ? scan.disease_name.substring(0, 2).toUpperCase()
-                      : scan.raw_ai_result
-                      ? scan.raw_ai_result.substring(0, 2).toUpperCase()
-                      : "AI"}
+            recentScans.map((scan) => {
+              const parsed = parseScanResult(scan);
+              const isHealthy = (parsed.diseaseEn || "")
+                .toLowerCase()
+                .includes("healthy");
+              const initials = parsed.diseaseEn
+                ? parsed.diseaseEn.substring(0, 2).toUpperCase()
+                : "AI";
+
+              return (
+                <div
+                  key={scan.id}
+                  className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${
+                        isHealthy
+                          ? "bg-green-100 text-green-600"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {initials}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">
+                        {parsed.diseaseEn || "Unknown Analysis"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Confidence:{" "}
+                        {parsed.confidence != null
+                          ? `${parsed.confidence.toFixed(0)}%`
+                          : "N/A"}{" "}
+                        | Crop: {parsed.crop || "N/A"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-800">
-                      {scan.disease_name ||
-                        scan.raw_ai_result ||
-                        "Unknown Analysis"}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Confidence: {scan.confidence_level}% | Crop:{" "}
-                      {scan.crop_name || "N/A"}
-                    </p>
-                  </div>
+                  <span className="text-xs font-medium text-slate-400">
+                    {scan.scan_date
+                      ? new Date(scan.scan_date).toLocaleDateString()
+                      : new Date().toLocaleDateString()}
+                  </span>
                 </div>
-                <span className="text-xs font-medium text-slate-400">
-                  {scan.scan_date
-                    ? new Date(scan.scan_date).toLocaleDateString()
-                    : new Date().toLocaleDateString()}
-                </span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
