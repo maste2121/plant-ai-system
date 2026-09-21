@@ -24,7 +24,7 @@ const AddDisease = () => {
       };
 
       const API_URL =
-        import.meta.env.VITE_API_URL || "https://plant-ai-system.onrender.com";
+        process.env.REACT_APP_API_URL || "https://plant-ai-system.onrender.com";
       const res = await axios.get(`${API_URL}/api/admin/diseases`, config);
       if (res.data.success) {
         setDiseasesList(res.data.data);
